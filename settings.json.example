@@ -1,0 +1,77 @@
+{
+  "title": "简历速填",
+  "defaultWidth": 250,
+  "defaultHeight": 250,
+  "defaultCollapsed": ["基本信息", "教育经历"],
+  "groups": [
+    {
+      "name": "基本信息",
+      "entries": [
+        {
+          "title": "联系方式",
+          "items": [
+            { "label": "姓名", "value": "张三" },
+            { "label": "电话", "value": "138 0000 0000" },
+            { "label": "邮箱", "value": "zhangsan@example.com" },
+            { "label": "出生年月", "value": "1999.06" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "教育经历",
+      "entries": [
+        {
+          "title": "本科 · XX大学",
+          "items": [
+            { "label": "学校专业", "value": "XX大学 计算机科学与技术" },
+            { "label": "学历", "value": "本科" },
+            { "label": "时间段", "value": "2018.09 - 2022.06" },
+            { "label": "GPA", "value": "3.6 / 4.0" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "工作经历",
+      "entries": [
+        {
+          "title": "公司A · 后端开发工程师",
+          "items": [
+            { "label": "公司", "value": "XX科技有限公司" },
+            { "label": "职位", "value": "后端开发工程师" },
+            { "label": "时间段", "value": "2022.07 - 至今" },
+            { "label": "职责描述", "value": "负责订单系统核心模块的设计与开发,主导服务拆分与性能优化。" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "项目经历",
+      "entries": [
+        {
+          "title": "项目A · 技术栈",
+          "items": [
+            { "label": "项目名称", "value": "XX 平台" },
+            { "label": "角色", "value": "核心开发者" },
+            { "label": "时间段", "value": "2023.01 - 2023.06" },
+            { "label": "项目描述", "value": "负责整体架构设计与核心功能实现,支持高并发访问。" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "技能证书",
+      "entries": [
+        {
+          "title": "技能与证书",
+          "items": [
+            { "label": "编程语言", "value": "JavaScript / TypeScript / Python" },
+            { "label": "框架", "value": "React / Node.js / Express" },
+            { "label": "证书", "value": "CET-6 / 软考中级" }
+          ]
+        }
+      ]
+    }
+  ]
+}

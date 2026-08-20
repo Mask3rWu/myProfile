@@ -1,0 +1,36 @@
+{
+  "name": "my-profile",
+  "version": "1.0.0",
+  "description": "全局置顶的简历信息速填小窗",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "com.myprofile.tray",
+    "productName": "简历速填",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "default-settings.json",
+      "icon.png"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}
