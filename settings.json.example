@@ -1,7 +1,7 @@
 {
   "title": "简历速填",
   "defaultWidth": 300,
-  "defaultHeight": 400,
+  "defaultHeight": 430,
   "defaultCollapsed": ["基本信息", "教育经历"],
   "openFolder": "",
   "groups": [
@@ -12,9 +12,10 @@
           "title": "联系方式",
           "items": [
             { "label": "姓名", "value": "张三" },
+            { "label": "年龄", "value": "25" },
             { "label": "电话", "value": "138 0000 0000" },
             { "label": "邮箱", "value": "zhangsan@example.com" },
-            { "label": "出生年月", "value": "1999.06" }
+            { "label": "GitHub", "value": "https://github.com/zhangsan" }
           ]
         }
       ]
@@ -23,26 +24,39 @@
       "name": "教育经历",
       "entries": [
         {
-          "title": "本科 · XX大学",
+          "title": "硕士",
           "items": [
-            { "label": "学校专业", "value": "XX大学 计算机科学与技术" },
-            { "label": "学历", "value": "本科" },
-            { "label": "时间段", "value": "2018.09 - 2022.06" },
-            { "label": "GPA", "value": "3.6 / 4.0" }
+            { "label": "学校", "value": "XX大学" },
+            { "label": "专业", "value": "计算机科学与技术" },
+            { "label": "学院", "value": "计算机学院" },
+            { "label": "时间段", "value": "2023.09 - 2026.06" },
+            { "label": "GPA", "value": "3.7 / 4.0" },
+            { "label": "研究方向", "value": "大模型应用与Agent开发" }
+          ]
+        },
+        {
+          "title": "本科",
+          "items": [
+            { "label": "学校", "value": "XX大学" },
+            { "label": "专业", "value": "计算机科学与技术" },
+            { "label": "学院", "value": "计算机学院" },
+            { "label": "时间段", "value": "2019.09 - 2023.07" },
+            { "label": "GPA", "value": "3.6 / 4.0" },
+            { "label": "主修课程", "value": "数据结构与算法、操作系统、数据库原理、软件工程" }
           ]
         }
       ]
     },
     {
-      "name": "工作经历",
+      "name": "实习经历",
       "entries": [
         {
-          "title": "公司A · 后端开发工程师",
+          "title": "公司A · 工程师",
           "items": [
-            { "label": "公司", "value": "XX科技有限公司" },
-            { "label": "职位", "value": "后端开发工程师" },
-            { "label": "时间段", "value": "2022.07 - 至今" },
-            { "label": "职责描述", "value": "负责订单系统核心模块的设计与开发,主导服务拆分与性能优化。" }
+            { "label": "单位", "value": "XX科技有限公司" },
+            { "label": "职位", "value": "软件开发工程师" },
+            { "label": "时间段", "value": "2022.07 - 2023.06" },
+            { "label": "项目描述", "value": "负责核心模块的设计与开发,主导服务拆分与性能优化。" }
           ]
         }
       ]
@@ -54,8 +68,9 @@
           "title": "项目A · 技术栈",
           "items": [
             { "label": "项目名称", "value": "XX 平台" },
-            { "label": "角色", "value": "核心开发者" },
             { "label": "时间段", "value": "2023.01 - 2023.06" },
+            { "label": "担任角色", "value": "核心开发者" },
+            { "label": "仓库地址", "value": "https://github.com/zhangsan/project-a" },
             { "label": "项目描述", "value": "负责整体架构设计与核心功能实现,支持高并发访问。" }
           ]
         }
