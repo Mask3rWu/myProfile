@@ -160,7 +160,7 @@ function applyRowTitles() {
     const valueEl = row.querySelector('.item-value');
     const full = row.dataset.value || '';
     const needsFull = full.includes('\n') || valueEl.scrollWidth > valueEl.clientWidth + 1;
-    row.title = (row.dataset.label || '') + '（点击复制）' + (needsFull ? '\n' + full : '');
+    row.title = '（点击复制）' + (needsFull ? '\n' + full : '');
   });
 }
 
