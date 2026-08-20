@@ -9,10 +9,12 @@ let isQuitting = false;
 
 const iconPath = path.join(__dirname, 'icon.png');
 
-const appDir = app.isPackaged ? path.dirname(process.execPath) : __dirname;
-const settingsPath = path.join(appDir, 'settings.json');
+// 配置统一存到 Electron 的 userData 目录（%APPDATA%/my-profile），打包为 portable exe 时 exe 运行在临时目录，
+// 若用 app.isPackaged ? __dirname 会指向 %TEMP%，导致配置丢失或难找。userData 路径固定且可持久化。
+const DATA_DIR = app.getPath('userData');
+const settingsPath = path.join(DATA_DIR, 'settings.json');
 const defaultSettingsPath = path.join(__dirname, 'default-settings.json');
-const winStatePath = path.join(appDir, 'win-state.json');
+const winStatePath = path.join(DATA_DIR, 'win-state.json');
 
 function loadSettings() {
   return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
