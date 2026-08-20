@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   loadConfig: () => ipcRenderer.invoke('config:load'),
   reloadConfig: () => ipcRenderer.invoke('config:reload'),
   openConfig: () => ipcRenderer.invoke('config:open'),
+  openFolder: () => ipcRenderer.invoke('folder:open'),
   setTop: (on) => ipcRenderer.invoke('config:set-top', on),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   closeWindow: () => ipcRenderer.invoke('window:close'),

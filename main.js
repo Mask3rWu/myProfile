@@ -129,6 +129,12 @@ if (!gotLock) {
       return settings;
     });
     ipcMain.handle('config:open', () => shell.openPath(settingsPath));
+    // 打开设置中指定的文件夹（配置文件靠 Settings 文件里的 openFolder 字段指定）
+    ipcMain.handle('folder:open', () => {
+      const dir = settings.openFolder;
+      if (!dir) return { ok: false };
+      return shell.openPath(dir).then((err) => ({ ok: !err, error: err || null }));
+    });
     ipcMain.handle('config:set-top', (_e, on) => {
       if (!win || win.isDestroyed()) return on;
       win.setAlwaysOnTop(on, 'floating');

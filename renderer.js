@@ -1,46 +1,25 @@
 const state = {
   data: null,
-  collapsed: new Set(),
-  touched: new Set(), // 用户手动点击过的条目，默认折叠不再覆盖它们
+  entryCollapsed: new Set(), // 条目级折叠（gi:ei）
+  groupCollapsed: new Set(), // 分组级折叠（键为分组名）
+  groupTouched: new Set(),   // 用户手动点开/收缩过的分组，不再被默认配置覆盖
   navActive: 0
 };
 
-/* 依据配置 defaultCollapsed，把指定分组内的条目默认折叠（仅针对未被用户点击过的条目） */
+/* 依据配置 defaultCollapsed，把指定分组整体默认收缩（仅针对未被用户手动切换过的分组）；
+   收缩后该分组下的所有条目都隐藏，条目本身默认保持展开。 */
 function applyDefaultCollapse() {
   const set = new Set((state.data && state.data.defaultCollapsed) || []);
-  state.data.groups.forEach((g, gi) => {
+  state.data.groups.forEach((g) => {
     if (!set.has(g.name)) return;
-    g.entries.forEach((entry, ei) => {
-      const key = gi + ':' + ei;
-      if (!state.touched.has(key)) state.collapsed.add(key);
-    });
+    if (!state.groupTouched.has(g.name)) state.groupCollapsed.add(g.name);
   });
 }
 
 const el = {
   nav: document.getElementById('titleNav'),
   content: document.getElementById('content'),
-  toast: document.getElementById('toast'),
-  tip: document.getElementById('tip')
-};
-
-/* 悬浮提示控件：在小窗内自适应定位（优先上方，放不下放下方，贴边修正） */
-const tip = {
-  show(text, anchor) {
-    el.tip.textContent = text;
-    el.tip.classList.add('show');
-    const r = anchor.getBoundingClientRect();
-    let x = r.left;
-    if (x + el.tip.offsetWidth > window.innerWidth - 8) x = window.innerWidth - el.tip.offsetWidth - 8;
-    if (x < 8) x = 8;
-    let y = r.top - el.tip.offsetHeight - 8;
-    if (y < 8) y = r.bottom + 8;
-    el.tip.style.left = x + 'px';
-    el.tip.style.top = y + 'px';
-  },
-  hide() {
-    el.tip.classList.remove('show');
-  }
+  toast: document.getElementById('toast')
 };
 
 let toastTimer = null;
@@ -107,59 +86,81 @@ function renderContent() {
     section.className = 'group-section';
     section.id = 'group-' + gi;
 
+    const groupCollapsed = state.groupCollapsed.has(g.name);
+
     const sectionHead = document.createElement('div');
-    sectionHead.className = 'section-head';
-    sectionHead.innerHTML =
+    sectionHead.className = 'section-head' + (groupCollapsed ? ' collapsed' : '');
+    sectionHead.innerHTML = '<span class="arrow"></span>' +
       '<span class="group-icon">' + iconFor(g.name, gi) + '</span>' + escapeHtml(g.name);
-    section.appendChild(sectionHead);
+
+    // 分组整体收缩：包住所有条目，收缩后整组隐藏
+    const groupBody = document.createElement('div');
+    groupBody.className = 'group-body' + (groupCollapsed ? '' : ' open');
+
+    sectionHead.onclick = () => {
+      state.groupTouched.add(g.name);
+      if (state.groupCollapsed.has(g.name)) state.groupCollapsed.delete(g.name);
+      else state.groupCollapsed.add(g.name);
+      sectionHead.classList.toggle('collapsed', state.groupCollapsed.has(g.name));
+      groupBody.classList.toggle('open', !state.groupCollapsed.has(g.name));
+    };
 
     g.entries.forEach((entry, ei) => {
       const key = gi + ':' + ei;
+      const collapsed = state.entryCollapsed.has(key);
       const card = document.createElement('section');
       card.className = 'card';
 
       const head = document.createElement('header');
-      head.className = 'entry-head' + (state.collapsed.has(key) ? ' collapsed' : '');
+      head.className = 'entry-head' + (collapsed ? ' collapsed' : '');
       head.innerHTML = '<span class="arrow"></span><span class="entry-title">' +
         escapeHtml(entry.title || '未命名') + '</span>';
       const body = document.createElement('div');
-      body.className = 'entry-body' + (state.collapsed.has(key) ? '' : ' open');
+      body.className = 'entry-body' + (collapsed ? '' : ' open');
 
       head.onclick = () => {
-        state.touched.add(key);
-        if (state.collapsed.has(key)) state.collapsed.delete(key);
-        else state.collapsed.add(key);
-        head.classList.toggle('collapsed', state.collapsed.has(key));
-        body.classList.toggle('open', !state.collapsed.has(key));
+        if (state.entryCollapsed.has(key)) state.entryCollapsed.delete(key);
+        else state.entryCollapsed.add(key);
+        head.classList.toggle('collapsed', state.entryCollapsed.has(key));
+        body.classList.toggle('open', !state.entryCollapsed.has(key));
       };
 
       entry.items.forEach((item) => {
         const row = document.createElement('div');
         row.className = 'item-row';
-        row.title = item.label + '（点击复制）';
         row.innerHTML =
           '<div class="item-main">' +
           '<span class="item-label">' + escapeHtml(item.label) + '</span>' +
           '<span class="item-value">' + escapeHtml(item.value) + '</span>' +
           '</div>';
         row.onclick = () => copy(item.value, item.label);
-        const valueEl = row.querySelector('.item-value');
-        // 仅当内容确实换行或超宽被省略时，悬浮才展示完整内容；单行短文本不弹提示
-        row.addEventListener('mouseenter', () => {
-          if (item.value.includes('\n') || valueEl.scrollWidth > valueEl.clientWidth + 1) {
-            tip.show(item.value, row);
-          }
-        });
-        row.addEventListener('mouseleave', () => tip.hide());
+        // 原样保留内容，供渲染后据此生成悬浮提示
+        row.dataset.label = item.label;
+        row.dataset.value = item.value;
         body.appendChild(row);
       });
 
       card.appendChild(head);
       card.appendChild(body);
-      section.appendChild(card);
+      groupBody.appendChild(card);
     });
 
+    section.appendChild(sectionHead);
+    section.appendChild(groupBody);
     el.content.appendChild(section);
+  });
+
+  applyRowTitles();
+}
+
+/* 渲染完成后统一写入悬浮提示：
+   换行或超宽被省略的内容，把完整值追加到原生 title 中（换行展示在“点击复制”下方） */
+function applyRowTitles() {
+  el.content.querySelectorAll('.item-row').forEach((row) => {
+    const valueEl = row.querySelector('.item-value');
+    const full = row.dataset.value || '';
+    const needsFull = full.includes('\n') || valueEl.scrollWidth > valueEl.clientWidth + 1;
+    row.title = (row.dataset.label || '') + '（点击复制）' + (needsFull ? '\n' + full : '');
   });
 }
 
@@ -213,6 +214,13 @@ document.getElementById('btnRefresh').onclick = async () => {
   } catch (e) {
     showError('配置文件解析失败：' + e.message);
   }
+};
+
+document.getElementById('btnFolder').onclick = async () => {
+  const res = await window.api.openFolder();
+  if (!res) toast('未设置文件夹路径，请在配置文件 openFolder 中指定');
+  else if (!res.ok) toast('打开失败：' + (res.error || '路径不存在'));
+  else toast('已打开文件夹');
 };
 
 let topOn = true;

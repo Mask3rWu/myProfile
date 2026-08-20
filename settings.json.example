@@ -3,6 +3,7 @@
   "defaultWidth": 250,
   "defaultHeight": 250,
   "defaultCollapsed": ["基本信息", "教育经历"],
+  "openFolder": "",
   "groups": [
     {
       "name": "基本信息",
