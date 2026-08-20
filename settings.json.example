@@ -1,7 +1,7 @@
 {
   "title": "简历速填",
-  "defaultWidth": 250,
-  "defaultHeight": 250,
+  "defaultWidth": 300,
+  "defaultHeight": 400,
   "defaultCollapsed": ["基本信息", "教育经历"],
   "openFolder": "",
   "groups": [
