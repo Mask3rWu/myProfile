@@ -45,6 +45,14 @@ function escapeHtml(s) {
   }[c]));
 }
 
+/* 编辑模式的「打开文件夹」路径：把用户输入的 / 统一为 Windows 常规的反斜杠，空白视为未设置。
+   不做尾部裁剪，以免破坏盘符根路径（如 C:\）；JSON 保存时反斜杠由 JSON.stringify 自动转义。 */
+function normalizeFolderPath(p) {
+  const s = String(p == null ? '' : p).trim();
+  if (!s) return '';
+  return s.replace(/\//g, '\\');
+}
+
 /* 分组图标池（彩色 emoji）：索引兜底，关键字优先匹配使图标贴合分组含义 */
 const GROUP_ICONS = [
   '👤',   // 人（基本信息）
@@ -267,6 +275,9 @@ function collectInputs() {
   });
   el.content.querySelectorAll('.edit-value').forEach((i) => {
     state.editData.groups[+i.dataset.gi].entries[+i.dataset.ei].items[+i.dataset.ii].value = i.value;
+  });
+  el.content.querySelectorAll('.edit-folder-in').forEach((i) => {
+    state.editData.openFolder = normalizeFolderPath(i.value);
   });
 }
 
@@ -574,6 +585,22 @@ function renderEdit() {
   addG.className = 'edit-addgroup';
   addG.appendChild(mkIcon(ICON.plus, 'primary addgroup', addGroup, '添加分组'));
   el.content.appendChild(addG);
+
+  // 末尾：编辑「打开文件夹」路径（openFolder，供正常视图顶栏的文件夹按钮使用）
+  const folderBox = document.createElement('div');
+  folderBox.className = 'edit-folder';
+  const ficon = document.createElement('span');
+  ficon.className = 'edit-icon';
+  ficon.textContent = '📂';
+  ficon.title = '打开文件夹';
+  folderBox.appendChild(ficon);
+  const finput = document.createElement('input');
+  finput.className = 'edit-folder-in';
+  finput.value = state.editData.openFolder || '';
+  finput.placeholder = '顶栏「文件夹」按钮打开的目标路径';
+  finput.title = 'Windows 路径：分隔符用 / 或 \\ 均可，统一按反斜杠保存；留空则仅提示未设置';
+  folderBox.appendChild(finput);
+  el.content.appendChild(folderBox);
 
   el.content.querySelectorAll('.edit-value').forEach((t) => autosizeValue(t));
   state.skipCollect = false; // 本次（可能跳过了收集的）重建完成，复位供后续正常渲染
