@@ -1,6 +1,6 @@
 {
   "name": "my-profile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "全局置顶的简历信息速填小窗",
   "main": "main.js",
   "scripts": {
