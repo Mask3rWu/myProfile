@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   setTop: (on) => ipcRenderer.invoke('config:set-top', on),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   closeWindow: () => ipcRenderer.invoke('window:close'),
+  showHelpTip: () => ipcRenderer.send('help:tip-show'),
+  hideHelpTip: () => ipcRenderer.send('help:tip-hide'),
   onConfigChanged: (cb) => {
     ipcRenderer.on('config:changed', (_event, data) => cb(data));
   }

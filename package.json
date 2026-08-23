@@ -17,6 +17,7 @@
       "preload.js",
       "renderer.js",
       "index.html",
+      "tooltip.html",
       "styles.css",
       "default-settings.json",
       "icon.png"

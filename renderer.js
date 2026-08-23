@@ -597,34 +597,11 @@ document.getElementById('btnTop').onclick = async () => {
   toast(topOn ? '已开启置顶' : '已关闭置顶');
 };
 
-// 「?」使用说明：直接放进原生悬浮提示（title），多行展示
+// 「?」使用说明：在弹出的独立悬浮窗中展示，主进程将其置于鼠标右下角（可脱离本窗边界）
 const btnHelp = document.getElementById('btnHelp');
-btnHelp.title = [
-  '简历速填 · 使用说明',
-  '',
-  '【浏览】',
-  '· 点击某项内容即可一键复制。',
-  '· 点击分组或条目的标题可展开／收起。',
-  '',
-  '【顶栏】',
-  '· 左侧一排分组图标：跳到对应分组。',
-  '· 右侧按钮（自左至右）：',
-  '　📁 打开配置里指定的文件夹。',
-  '　📌 窗口是否置顶。',
-  '　✏️ 进入或退出编辑模式。',
-  '　✕ 关闭（最小化到托盘）。',
-  '',
-  '【编辑模式】',
-  '· ＋／✕：增删分组、条目、键值对。',
-  '· ≡ 手柄拖拽可调整键值对顺序。',
-  '· ▾／▸：折叠或展开分组／条目（仅编辑表单内收起）。',
-  '· ▽：设为「默认折叠」，保存后正常视图该分组默认收起。',
-  '· 分组名、条目标题、键名与内容均可就地修改。',
-  '· 「保存」统一写入配置；「取消」丢弃本次改动。',
-  '',
-  '【其他】',
-  '· 关闭只是最小化到托盘，右键托盘图标选「退出」才真正退出。'
-].join('\n');
+btnHelp.removeAttribute('title'); // 去掉原生 title，避免与自定义提示重复
+btnHelp.addEventListener('mouseenter', () => window.api.showHelpTip());
+btnHelp.addEventListener('mouseleave', () => window.api.hideHelpTip());
 
 document.getElementById('btnClose').onclick = () => window.api.closeWindow();
 

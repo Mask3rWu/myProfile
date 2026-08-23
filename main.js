@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, clipboard, shell, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, clipboard, shell, Tray, Menu, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -6,6 +6,8 @@ let win = null;
 let settings = null;
 let tray = null;
 let isQuitting = false;
+let tipWin = null;      // 独立的使用说明悬浮窗（可脱离主窗边界，跟随鼠标右下角）
+let tipSize = null;     // 悬浮窗内容实际尺寸（加载完成后测得）
 
 const iconPath = path.join(__dirname, 'icon.png');
 
@@ -82,14 +84,84 @@ function createWindow() {
     if (!isQuitting) {
       e.preventDefault();
       win.hide();
+      hideTip();
     }
   });
 }
 
 function toggleWindow() {
   if (!win || win.isDestroyed()) return;
-  if (win.isVisible()) win.hide();
+  if (win.isVisible()) { win.hide(); hideTip(); }
   else { win.show(); win.focus(); }
+}
+
+// ---- 使用说明悬浮窗：独立的无边框透明窗，可在主窗边界之外显示，位置跟随鼠标右下角 ----
+const TIP_MARGIN = 16;   // 面板四周为阴影预留的透明边距
+const TIP_GAP_X = 16;    // 鼠标右下角偏移（与原生 title 一致的落点）
+const TIP_GAP_Y = 22;
+const TIP_SCREEN_INSET = 8; // 面板与屏幕工作区边缘的最小间距
+
+// 首次引入时窗口尺寸未知，用 Promise 保证“加载并测量”之后再展示
+function ensureTipWindow() {
+  if (tipWin && !tipWin.isDestroyed()) return Promise.resolve();
+  tipWin = new BrowserWindow({
+    width: 320,
+    height: 400,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    hasShadow: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false }
+  });
+  tipWin.loadFile('tooltip.html');
+  tipWin.setIgnoreMouseEvents(true); // 纯展示，不拦截鼠标
+  tipWin.on('close', (e) => {
+    if (!isQuitting) { e.preventDefault(); tipWin.hide(); }
+  });
+  return new Promise((resolve) => {
+    tipWin.webContents.once('did-finish-load', async () => {
+      // 测量内容并收紧窗口尺寸，避免出现滚动条 / 内容被截断
+      try {
+        const { width, height } = await tipWin.webContents.executeJavaScript(
+          "(() => { const r = document.querySelector('.help-tip').getBoundingClientRect();" +
+          " return { width: Math.ceil(r.width), height: Math.ceil(r.height) }; })()"
+        );
+        tipSize = { w: width + TIP_MARGIN * 2, h: height + TIP_MARGIN * 2 };
+      } catch {}
+      resolve();
+    });
+  });
+}
+
+async function showTip() {
+  await ensureTipWindow();
+  const sz = tipSize || { w: 320, h: 400 };
+  const panelW = sz.w - TIP_MARGIN * 2;
+  const panelH = sz.h - TIP_MARGIN * 2;
+
+  const c = screen.getCursorScreenPoint();
+  const wa = screen.getDisplayNearestPoint(c).workArea; // 光标所在显示器的工作区
+
+  // 默认落在鼠标右下角；放不下时翻到鼠标的左侧/上方，最后夹紧在工作区内
+  let tx = c.x + TIP_GAP_X;
+  let ty = c.y + TIP_GAP_Y;
+  if (tx + panelW > wa.x + wa.width) tx = c.x - TIP_GAP_X - panelW;
+  if (ty + panelH > wa.y + wa.height) ty = c.y - TIP_GAP_Y - panelH;
+  tx = Math.max(wa.x + TIP_SCREEN_INSET, Math.min(tx, wa.x + wa.width - panelW - TIP_SCREEN_INSET));
+  ty = Math.max(wa.y + TIP_SCREEN_INSET, Math.min(ty, wa.y + wa.height - panelH - TIP_SCREEN_INSET));
+
+  tipWin.setSize(sz.w, sz.h);
+  tipWin.setPosition(tx - TIP_MARGIN, ty - TIP_MARGIN);
+  tipWin.setAlwaysOnTop(true, 'pop-up-menu');
+  tipWin.showInactive();
+}
+
+function hideTip() {
+  if (tipWin && !tipWin.isDestroyed()) tipWin.hide();
 }
 
 function createTray() {
@@ -164,6 +236,8 @@ if (!gotLock) {
     ipcMain.handle('window:close', () => {
       if (win && !win.isDestroyed()) win.close();
     });
+    ipcMain.on('help:tip-show', () => showTip());
+    ipcMain.on('help:tip-hide', () => hideTip());
 
     createWindow();
     createTray();

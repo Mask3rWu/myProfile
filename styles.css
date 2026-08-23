@@ -363,3 +363,85 @@ body {
 .edit-value:focus, .edit-value:hover { background: #fff; border-color: var(--accent); }
 
 .edit-addgroup { display: flex; justify-content: center; padding: 4px 0; margin-top: 2px; }
+
+
+/* ---- 使用说明悬浮窗（tooltip.html，图标与顶栏同一套简笔画） ----
+   该页加载在独立的透明无边框窗口里，默认即显示、不脱离窗口、跟随鼠标右下角。 */
+.tip-page {
+  background: transparent !important;
+  overflow: visible !important;
+  height: auto !important;
+  padding: 16px; /* 面板四周为阴影预留的透明边距 */
+}
+.help-tip {
+  position: static;
+  max-width: 280px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+/* 朝上箭头（朝向左上方的鼠标） */
+.help-tip::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 14px;
+  width: 9px;
+  height: 9px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+.ht-head {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #f0f2f5;
+}
+.ht-sec { margin-top: 6px; }
+.ht-sec-title {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+/* 一级分点：实心圆点 + 文本，圆点与「【】」标题同起点，不更靠左 */
+.ht-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text);
+  margin-top: 2px;
+}
+.ht-line::before {
+  content: '•';
+  flex: none;
+  color: var(--muted);
+}
+/* 二级分点：缩进一级，以图标/emoji 作为导引符号 */
+.ht-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 20px;
+  color: var(--text);
+}
+.ht-em { flex: none; font-size: 16px; line-height: 1; }
+.ht-ic {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bar-text);
+}
+.ht-ic svg { width: 15px; height: 15px; display: block; }
+/* 顶栏帮助按钮本身是文字「?」，此处以相同风格呈现 */
+.ht-qi { font-size: 15px; font-weight: 700; line-height: 1; color: var(--bar-text); }
