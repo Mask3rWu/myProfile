@@ -3,8 +3,16 @@ const state = {
   entryCollapsed: new Set(), // 条目级折叠（gi:ei）
   groupCollapsed: new Set(), // 分组级折叠（键为分组名）
   groupTouched: new Set(),   // 用户手动点开/收缩过的分组，不再被默认配置覆盖
-  navActive: 0
+  navActive: 0,
+  editing: false,            // 是否处于编辑模式
+  editData: null,            // 编辑模式的在内存副本（保存前不动磁盘）
+  skipCollect: false,        // 拖拽重排后重渲染时，跳过 collectInputs（数组与 DOM 索引已不一致）
+  editGroupCollapsed: new Set(), // 编辑表单内分组折叠（键为 gi）
+  editEntryCollapsed: new Set()  // 编辑表单内条目折叠（键为 "gi:ei"）
 };
+
+// 键值对拖拽的源索引（dragstart 时记录，drop 时消费后置空）
+let dragFrom = null;
 
 /* 依据配置 defaultCollapsed，把指定分组整体默认收缩（仅针对未被用户手动切换过的分组）；
    收缩后该分组下的所有条目都隐藏，条目本身默认保持展开。 */
@@ -19,7 +27,8 @@ function applyDefaultCollapse() {
 const el = {
   nav: document.getElementById('titleNav'),
   content: document.getElementById('content'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  edit: document.getElementById('btnEdit')
 };
 
 let toastTimer = null;
@@ -73,6 +82,22 @@ function renderNav() {
     btn.title = g.name;
     btn.onclick = () => {
       const target = document.getElementById('group-' + i);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    el.nav.appendChild(btn);
+  });
+}
+
+/* 编辑模式导航：与正常视图同款，但数据源用 state.editData，目标定位到 .edit-group */
+function renderNavEdit() {
+  el.nav.innerHTML = '';
+  state.editData.groups.forEach((g, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'nav-btn' + (i === state.navActive ? ' active' : '');
+    btn.textContent = iconFor(g.name, i);
+    btn.title = g.name;
+    btn.onclick = () => {
+      const target = el.content.querySelectorAll('.edit-group')[i];
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     el.nav.appendChild(btn);
@@ -165,7 +190,7 @@ function applyRowTitles() {
 }
 
 function updateNav() {
-  const sections = el.content.querySelectorAll('.group-section');
+  const sections = el.content.querySelectorAll(state.editing ? '.edit-group' : '.group-section');
   let current = 0;
   sections.forEach((s, i) => {
     if (s.getBoundingClientRect().top <= 60) current = i;
@@ -179,9 +204,355 @@ function updateNav() {
 }
 
 function render() {
+  if (state.editing) { renderEdit(); return; }
   applyDefaultCollapse();
   renderContent();
   renderNav();
+  updateNav();
+}
+
+/* ================= 编辑模式 =================
+   进入编辑后，数据操作全部落在 state.editData（state.data 的深拷贝）上，
+   只有点「保存」才一次性写回磁盘；写回后由 main 的 fs.watchFile 触发 config:changed
+   自动重渲染，回到正常视图。编辑期间正常模式的「点击复制/折叠」交互完全不参与。 */
+
+function editClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+function enterEdit() {
+  state.editData = editClone(state.data);
+  state.editing = true;
+  el.edit.classList.add('active');
+  el.edit.title = '取消编辑';
+  render();
+}
+
+function leaveEdit() {
+  state.editing = false;
+  state.editData = null;
+  el.edit.classList.remove('active');
+  el.edit.title = '编辑配置';
+}
+
+function cancelEdit() {
+  leaveEdit();
+  render();
+}
+
+/* 行内编辑时输入控件是无控制的（自带值），每次结构性重渲染前先把当前 DOM 里
+   未提交的文本收集回 editData，避免重建后丢失正在输入的改动。 */
+function collectInputs() {
+  if (!state.editData) return;
+  el.content.querySelectorAll('.edit-groupname').forEach((i) => {
+    state.editData.groups[+i.dataset.gi].name = i.value;
+  });
+  el.content.querySelectorAll('.edit-entryname').forEach((i) => {
+    state.editData.groups[+i.dataset.gi].entries[+i.dataset.ei].title = i.value;
+  });
+  el.content.querySelectorAll('.edit-label-in').forEach((i) => {
+    state.editData.groups[+i.dataset.gi].entries[+i.dataset.ei].items[+i.dataset.ii].label = i.value;
+  });
+  el.content.querySelectorAll('.edit-value').forEach((i) => {
+    state.editData.groups[+i.dataset.gi].entries[+i.dataset.ei].items[+i.dataset.ii].value = i.value;
+  });
+}
+
+/* 内容自增高：宽不换行 / 适配内容，脱离下整个盒子随内容长高，可超出小窗（由滚动容器承接） */
+function autosizeValue(t) {
+  t.style.height = 'auto';
+  t.style.height = t.scrollHeight + 'px';
+}
+
+function saveEdit() {
+  collectInputs();
+  window.api.saveConfig(state.editData).then((res) => {
+    if (res && res.ok) {
+      state.data = state.editData; // 先落内存，等待 watch 的 config:changed 用磁盘内容对齐
+      leaveEdit();
+      render();
+      toast('已保存');
+    } else {
+      toast('保存失败：' + ((res && res.error) || '未知错误'));
+    }
+  });
+}
+
+/* ---- 三层 CRUD（全部作用于 state.editData，新增即插入空行并就地聚焦）---- */
+
+function addItem(gi, ei) {
+  state.editData.groups[gi].entries[ei].items.push({ label: '', value: '' });
+  render();
+  focusEdit(gi, ei, state.editData.groups[gi].entries[ei].items.length - 1);
+}
+
+function delItem(gi, ei, ii) {
+  // 删除仅作用在编辑内存副本，点「保存」才落盘，因此无需确认。
+  // 必须先收集（此时数组与 DOM 索引一致）再 splice、再以 skipCollect 重渲染：
+  // 否则重渲染第一步按旧索引回写已在 splice 后缩短的数组会越界报错（表现为点击无反应）。
+  collectInputs();
+  state.editData.groups[gi].entries[ei].items.splice(ii, 1);
+  state.skipCollect = true;
+  render();
+}
+
+function addEntry(gi) {
+  state.editData.groups[gi].entries.push({ title: '', items: [] });
+  render();
+  focusEdit(gi, state.editData.groups[gi].entries.length - 1, undefined);
+}
+
+function delEntry(gi, ei) {
+  // 同 delItem：先收集再重排，避免重渲染回写旧索引时越界
+  collectInputs();
+  state.editData.groups[gi].entries.splice(ei, 1);
+  state.skipCollect = true;
+  render();
+}
+
+function addGroup() {
+  state.editData.groups.push({ name: '', entries: [] });
+  render();
+  focusEdit(state.editData.groups.length - 1, undefined, undefined);
+}
+
+function delGroup(gi) {
+  // 同 delItem：先收集再重排，避免重渲染回写旧索引时越界
+  collectInputs();
+  state.editData.groups.splice(gi, 1);
+  state.skipCollect = true;
+  render();
+}
+
+/* 重渲染后把焦点落到指定单元格：gi（必填）、ei/ii 可缺省（分组名/条目标题只有 part） */
+function focusEdit(gi, ei, ii) {
+  const want = { gi: String(gi), ei: ei == null ? '' : String(ei), ii: ii == null ? '' : String(ii) };
+  const cell = Array.from(el.content.querySelectorAll('[data-edit]')).find((x) =>
+    x.dataset.gi === want.gi && (x.dataset.ei || '') === want.ei && (x.dataset.ii || '') === want.ii);
+  if (cell) setTimeout(() => { cell.focus(); if (cell.select) cell.select(); }, 0);
+}
+
+/* ---- 键值对拖拽排序（仅编辑模式）---- */
+
+function clearDragMarkers() {
+  el.content.querySelectorAll('.edit-item').forEach((w) => {
+    w.classList.remove('drag-source', 'drop-before', 'drop-after');
+  });
+  el.content.querySelectorAll('.drag-handle').forEach((h) => h.classList.remove('dragging'));
+}
+
+/* 把 dragFrom 处键值对落到 hover 目标（索引 h）之前/之后。
+   顺序必须为：先 collectInputs()（此时数组与 DOM 索引一致，稳妥回收未提交文本）
+   → 数组重排 → 以 skipCollect 重渲染（不再按旧 DOM 索引二次回写）。 */
+function dropItem(gi, ei, h, ev) {
+  const items = state.editData.groups[gi].entries[ei].items;
+  const from = dragFrom;
+  dragFrom = null;
+  clearDragMarkers();
+  if (from == null || from === h || from < 0 || from >= items.length) return;
+  const r = ev.currentTarget.getBoundingClientRect();
+  const after = ev.clientY > r.top + r.height / 2;
+  let hFinal = h;
+  if (h > from) hFinal = h - 1;
+  const insert = after ? hFinal + 1 : hFinal;
+  collectInputs();
+  const [moved] = items.splice(from, 1);
+  items.splice(insert, 0, moved);
+  state.skipCollect = true;
+  render();
+}
+
+/* ---- 编辑表单内的折叠 / 默认折叠 toggle ---- */
+
+function toggleEditGroup(gi) {
+  if (state.editGroupCollapsed.has(gi)) state.editGroupCollapsed.delete(gi);
+  else state.editGroupCollapsed.add(gi);
+  render();
+}
+
+function toggleEditEntry(gi, ei) {
+  const k = gi + ':' + ei;
+  if (state.editEntryCollapsed.has(k)) state.editEntryCollapsed.delete(k);
+  else state.editEntryCollapsed.add(k);
+  render();
+}
+
+/* 把当前分组名加入/移出 defaultCollapsed（正常视图据此默认折叠该分组）。
+   先收集文本拿到最新分组名，再写配置标记；defaultCollapsed 按名字与正常视图匹配。 */
+function toggleGroupDefaultCollapsed(gi) {
+  collectInputs();
+  const name = state.editData.groups[gi].name;
+  const list = state.editData.defaultCollapsed || (state.editData.defaultCollapsed = []);
+  const i = list.indexOf(name);
+  if (i >= 0) list.splice(i, 1);
+  else list.push(name);
+  render();
+}
+
+/* ---- 编辑模式渲染 ---- */
+
+function mkBtn(text, cls, onClick, title) {
+  const b = document.createElement('button');
+  b.className = 'mini-btn ' + (cls || '');
+  b.textContent = text;
+  b.onclick = onClick;
+  if (title) b.title = title;
+  return b;
+}
+
+/* 就地编辑控件：分组/条目标题与键值 label 为单行输入；value 为自增高 textarea（Enter 即换行，文本整体保存） */
+function editNameInput(kind, gi, ei, value, placeholder) {
+  const inp = document.createElement('input');
+  inp.className = 'edit-name ' + (kind === 'group' ? 'edit-groupname' : 'edit-entryname');
+  inp.setAttribute('data-edit', kind === 'group' ? 'groupname' : 'entryname');
+  inp.dataset.gi = gi;
+  if (ei !== undefined) inp.dataset.ei = ei;
+  inp.value = value || '';
+  inp.placeholder = placeholder || '';
+  return inp;
+}
+
+function editLabelInput(gi, ei, ii, value) {
+  const inp = document.createElement('input');
+  inp.className = 'edit-label-in';
+  inp.setAttribute('data-edit', 'label');
+  inp.dataset.gi = gi; inp.dataset.ei = ei; inp.dataset.ii = ii;
+  inp.value = value || '';
+  inp.placeholder = '名称';
+  return inp;
+}
+
+function editValueArea(gi, ei, ii, value) {
+  const t = document.createElement('textarea');
+  t.className = 'edit-value';
+  t.setAttribute('data-edit', 'value');
+  t.dataset.gi = gi; t.dataset.ei = ei; t.dataset.ii = ii;
+  t.value = value || '';
+  t.placeholder = '内容（直接按 Enter 换行）';
+  t.rows = 1;
+  // Enter 即换行，无需提交：文本统一在「保存」时整体收集落盘
+  t.addEventListener('input', () => autosizeValue(t));
+  return t;
+}
+
+function renderEdit() {
+  if (!state.skipCollect) collectInputs(); // 重建前回收未提交的输入，避免结构性变更后丢失
+  renderNavEdit();
+  el.content.innerHTML = '';
+
+  const bar = document.createElement('div');
+  bar.className = 'edit-bar';
+  const hint = document.createElement('span');
+  hint.className = 'edit-hint';
+  hint.textContent = '编辑模式';
+  bar.appendChild(hint);
+  bar.appendChild(mkBtn('保存', 'primary', saveEdit));
+  bar.appendChild(mkBtn('取消', '', cancelEdit));
+  el.content.appendChild(bar);
+
+  const data = state.editData;
+  data.groups.forEach((g, gi) => {
+    const gsection = document.createElement('section');
+    gsection.className = 'edit-group';
+
+    const groupCollapsedEdit = state.editGroupCollapsed.has(gi);
+    const isDefaultCollapsed = (state.editData.defaultCollapsed || []).includes(g.name);
+    const ghead = document.createElement('div');
+    ghead.className = 'edit-head' + (groupCollapsedEdit ? ' folded' : '');
+    ghead.appendChild(mkBtn(groupCollapsedEdit ? '▸' : '▾', 'icon', () => toggleEditGroup(gi)));
+    const gicon = document.createElement('span');
+    gicon.className = 'edit-icon';
+    gicon.textContent = iconFor(g.name, gi);
+    ghead.appendChild(gicon);
+    ghead.appendChild(editNameInput('group', gi, undefined, g.name, '分组名称'));
+    const gacts = document.createElement('div');
+    gacts.className = 'edit-actions';
+    // 默认折叠：图标 toggle（写 defaultCollapsed，正常视图首次进入时折叠该分组）
+    gacts.appendChild(mkBtn('▽', 'icon' + (isDefaultCollapsed ? ' active' : ''), () => toggleGroupDefaultCollapsed(gi),
+      isDefaultCollapsed ? '取消默认折叠（正常视图收起）' : '设为默认折叠（正常视图收起）'));
+    gacts.appendChild(mkBtn('+', 'icon', () => addEntry(gi), '添加条目'));
+    gacts.appendChild(mkBtn('✕', 'icon danger', () => delGroup(gi), '删除分组'));
+    ghead.appendChild(gacts);
+    gsection.appendChild(ghead);
+
+    if (!groupCollapsedEdit) g.entries.forEach((entry, ei) => {
+      const entryCollapsedEdit = state.editEntryCollapsed.has(gi + ':' + ei);
+      const esection = document.createElement('div');
+      esection.className = 'edit-entry';
+
+      const ehead = document.createElement('div');
+      ehead.className = 'edit-head sub' + (entryCollapsedEdit ? ' folded' : '');
+      ehead.appendChild(mkBtn(entryCollapsedEdit ? '▸' : '▾', 'icon', () => toggleEditEntry(gi, ei)));
+      ehead.appendChild(editNameInput('entry', gi, ei, entry.title, '条目标题'));
+      const eacts = document.createElement('div');
+      eacts.className = 'edit-actions';
+      eacts.appendChild(mkBtn('＋键值', '', () => addItem(gi, ei))); // 键值新增，若也要图标可再调整
+      eacts.appendChild(mkBtn('✕', 'icon danger', () => delEntry(gi, ei), '删除条目'));
+      ehead.appendChild(eacts);
+      esection.appendChild(ehead);
+
+      if (!entryCollapsedEdit) entry.items.forEach((item, ii) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'edit-item';
+        wrap.dataset.ii = ii;
+
+        // 拖拽手柄：draggable 仅在此手柄上，避免与 label/value 的文本选择冲突
+        const handle = document.createElement('span');
+        handle.className = 'drag-handle';
+        handle.textContent = '≡';
+        handle.title = '拖动调整位置';
+        handle.draggable = true;
+        handle.dataset.gi = gi; handle.dataset.ei = ei; handle.dataset.ii = ii;
+        handle.addEventListener('dragstart', (ev) => {
+          dragFrom = ii;
+          ev.dataTransfer.effectAllowed = 'move';
+          ev.dataTransfer.setData('text/plain', String(ii));
+          const wrap0 = handle.closest('.edit-item');
+          if (wrap0) wrap0.classList.add('drag-source');
+          setTimeout(() => handle.classList.add('dragging'), 0);
+        });
+        handle.addEventListener('dragend', () => {
+          dragFrom = null;
+          clearDragMarkers();
+        });
+
+        // 目标行：dragover 持续更新落点指示；drop 完成重排
+        wrap.addEventListener('dragover', (ev) => {
+          if (dragFrom == null || dragFrom === ii) return;
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = 'move';
+          const r2 = wrap.getBoundingClientRect();
+          const afl = ev.clientY > r2.top + r2.height / 2;
+          wrap.classList.toggle('drop-after', afl);
+          wrap.classList.toggle('drop-before', !afl);
+        });
+        wrap.addEventListener('drop', (ev) => {
+          ev.preventDefault();
+          dropItem(gi, ei, ii, ev);
+        });
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'edit-item-key';
+        keyRow.appendChild(handle);
+        keyRow.appendChild(editLabelInput(gi, ei, ii, item.label));
+        keyRow.appendChild(mkBtn('✕', 'icon danger', () => delItem(gi, ei, ii)));
+
+        wrap.appendChild(keyRow);
+        wrap.appendChild(editValueArea(gi, ei, ii, item.value));
+        esection.appendChild(wrap);
+      });
+
+      gsection.appendChild(esection);
+    });
+
+    el.content.appendChild(gsection);
+  });
+
+  const addG = document.createElement('div');
+  addG.className = 'edit-addgroup';
+  addG.appendChild(mkBtn('+', 'primary addgroup', addGroup, '添加分组'));
+  el.content.appendChild(addG);
+
+  el.content.querySelectorAll('.edit-value').forEach((t) => autosizeValue(t));
+  state.skipCollect = false; // 本次（可能跳过了收集的）重建完成，复位供后续正常渲染
   updateNav();
 }
 
@@ -204,16 +575,9 @@ async function init() {
   });
 }
 
-document.getElementById('btnConfig').onclick = () => window.api.openConfig();
-
-document.getElementById('btnRefresh').onclick = async () => {
-  try {
-    state.data = await window.api.reloadConfig();
-    render();
-    toast('配置已刷新');
-  } catch (e) {
-    showError('配置文件解析失败：' + e.message);
-  }
+document.getElementById('btnEdit').onclick = () => {
+  if (state.editing) cancelEdit();
+  else enterEdit();
 };
 
 document.getElementById('btnFolder').onclick = async () => {
@@ -232,6 +596,35 @@ document.getElementById('btnTop').onclick = async () => {
   btnTop.title = topOn ? '取消置顶' : '置顶';
   toast(topOn ? '已开启置顶' : '已关闭置顶');
 };
+
+// 「?」使用说明：直接放进原生悬浮提示（title），多行展示
+const btnHelp = document.getElementById('btnHelp');
+btnHelp.title = [
+  '简历速填 · 使用说明',
+  '',
+  '【浏览】',
+  '· 点击某项内容即可一键复制。',
+  '· 点击分组或条目的标题可展开／收起。',
+  '',
+  '【顶栏】',
+  '· 左侧一排分组图标：跳到对应分组。',
+  '· 右侧按钮（自左至右）：',
+  '　📁 打开配置里指定的文件夹。',
+  '　📌 窗口是否置顶。',
+  '　✏️ 进入或退出编辑模式。',
+  '　✕ 关闭（最小化到托盘）。',
+  '',
+  '【编辑模式】',
+  '· ＋／✕：增删分组、条目、键值对。',
+  '· ≡ 手柄拖拽可调整键值对顺序。',
+  '· ▾／▸：折叠或展开分组／条目（仅编辑表单内收起）。',
+  '· ▽：设为「默认折叠」，保存后正常视图该分组默认收起。',
+  '· 分组名、条目标题、键名与内容均可就地修改。',
+  '· 「保存」统一写入配置；「取消」丢弃本次改动。',
+  '',
+  '【其他】',
+  '· 关闭只是最小化到托盘，右键托盘图标选「退出」才真正退出。'
+].join('\n');
 
 document.getElementById('btnClose').onclick = () => window.api.closeWindow();
 

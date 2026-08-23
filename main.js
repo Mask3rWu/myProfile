@@ -138,6 +138,15 @@ if (!gotLock) {
       return settings;
     });
     ipcMain.handle('config:open', () => shell.openPath(settingsPath));
+    // 编辑模式保存：整份配置写回文件。写入后 fs.watchFile 会触发 config:changed 让渲染层自动刷新
+    ipcMain.handle('config:save', (_e, data) => {
+      try {
+        fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2), 'utf8');
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    });
     // 打开设置中指定的文件夹（配置文件靠 Settings 文件里的 openFolder 字段指定）
     ipcMain.handle('folder:open', () => {
       const dir = settings.openFolder;

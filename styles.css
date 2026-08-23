@@ -89,6 +89,10 @@ body {
 .bar-btn:hover { background: rgba(0, 0, 0, 0.12); }
 .bar-btn.close:hover { background: #e5484d; color: #fff; }
 .bar-btn.pinned { background: var(--accent); color: #fff; }
+.bar-btn.active { background: #ad6800; color: #fff; }
+.bar-btn.active:hover { background: #92560a; }
+/* 文字型按钮（如「?」帮助） */
+.bar-btn.text { font-size: 15px; font-weight: 700; line-height: 1; padding: 1px 5px; }
 
 /* ---- 内容区 ---- */
 .body { display: flex; height: calc(100% - 32px); }
@@ -234,3 +238,128 @@ body {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 .error { color: #c0392b; padding: 16px; }
+
+
+/* ---- 编辑模式 ---- */
+.edit-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff7e6;
+  border-bottom: 1px solid #f0d9a8;
+  padding: 6px 10px;
+  margin: 0 -12px 8px;
+}
+.edit-hint { font-size: 12px; color: #ad6800; margin-right: auto; }
+
+.mini-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.3;
+}
+.mini-btn:hover { background: #f1f4f8; }
+.mini-btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.mini-btn.primary:hover { background: #285fd0; }
+.mini-btn.danger { color: #c0392b; }
+.mini-btn.danger:hover { background: #fdecea; }
+.mini-btn.block { width: 100%; padding: 7px; border-style: dashed; }
+.mini-btn.icon { width: 18px; height: 18px; padding: 0; align-items: center; justify-content: center; font-size: 12px; line-height: 1; flex: none; }
+/* 图标式 toggle 的「开」状态（如默认折叠） */
+.mini-btn.active { border-color: var(--accent); color: var(--accent); background: #eaf0ff; }
+.mini-btn.active:hover { background: #dde8ff; }
+/* 底部「添加分组」图标按钮 */
+.mini-btn.addgroup { width: 26px; height: 22px; padding: 0; line-height: 1; }
+
+.edit-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 7px;
+  margin-bottom: 8px;
+}
+.edit-head { display: flex; align-items: center; gap: 6px; }
+.edit-head.sub { margin: 7px 0 2px; }
+.edit-icon { font-size: 14px; }
+.edit-name {
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.035);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+  user-select: text;
+}
+.edit-groupname, .edit-entryname { flex: 1; }
+.edit-name:focus { background: #fff; border-color: var(--accent); }
+
+.edit-actions { display: flex; gap: 4px; flex: none; }
+
+/* 键值对拖拽手柄：紧凑图标，仅此元素可被拖动 */
+.drag-handle {
+  flex: none;
+  cursor: grab;
+  user-select: none;
+  color: var(--muted);
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+.drag-handle:hover { color: var(--text); }
+.drag-handle.dragging { color: var(--accent); }
+.edit-item.drag-source { opacity: 0.45; }
+/* 落点指示线：accent 横线标出拖入位置 */
+.edit-item.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+.edit-item.drop-after { box-shadow: 0 2px 0 var(--accent); }
+
+.edit-entry { border-top: 1px dashed var(--border); margin-top: 4px; }
+.edit-item { padding: 3px 0; border-top: 1px solid #f0f2f5; }
+.edit-item-key { display: flex; align-items: center; gap: 6px; }
+.edit-label-in {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.035);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  outline: none;
+  user-select: text;
+}
+.edit-label-in:focus { background: #fff; border-color: var(--accent); color: var(--text); }
+.edit-value {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 2px;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.035);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  user-select: text;
+}
+.edit-value:focus, .edit-value:hover { background: #fff; border-color: var(--accent); }
+
+.edit-addgroup { display: flex; justify-content: center; padding: 4px 0; margin-top: 2px; }

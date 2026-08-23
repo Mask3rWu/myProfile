@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   loadConfig: () => ipcRenderer.invoke('config:load'),
   reloadConfig: () => ipcRenderer.invoke('config:reload'),
+  saveConfig: (data) => ipcRenderer.invoke('config:save', data),
   openConfig: () => ipcRenderer.invoke('config:open'),
   openFolder: () => ipcRenderer.invoke('folder:open'),
   setTop: (on) => ipcRenderer.invoke('config:set-top', on),
