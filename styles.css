@@ -380,7 +380,9 @@ body {
 }
 .help-tip {
   position: static;
-  max-width: 280px;
+  /* 按内容伸缩（不设固定/最大宽度），让所有说明行都能排成一行而不换行 */
+  width: max-content;
+  max-width: none;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -423,6 +425,7 @@ body {
   gap: 6px;
   color: var(--text);
   margin-top: 2px;
+  white-space: nowrap; /* 说明保持一行，不换行 */
 }
 .ht-line::before {
   content: '•';
@@ -436,6 +439,7 @@ body {
   gap: 6px;
   padding-left: 20px;
   color: var(--text);
+  white-space: nowrap; /* 说明保持一行，不换行 */
 }
 .ht-em { flex: none; font-size: 16px; line-height: 1; }
 .ht-ic {
