@@ -68,6 +68,20 @@ function iconFor(name, index) {
   return GROUP_ICONS[index % GROUP_ICONS.length];
 }
 
+/* ---- 图标（统一为内联 SVG，颜色随 currentColor 走，尺寸统一）---- */
+const ICON = {
+  // 折叠箭头：基线为「朝右」，展开态由 CSS rotate(90deg) 变为朝下
+  chevronRight: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
+  // 增加（＋）
+  plus: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  // 删除（✕）
+  x: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
+  // 默认折叠（四角向内收缩箭头）
+  caretDown: '<svg viewBox="0 0 1024 1024" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M942.1 41H657.9c-20.4 0-39.5 13.8-42.9 34-4.3 25.6 15.5 48 40.4 48h225.3c11.3 0 20.5 9.2 20.5 20.5v222.8c0 20.4 13.8 39.5 34 42.9 25.6 4.3 48-15.5 48-40.4V81.9C983 59.4 964.6 41 942.1 41zM368.6 901.1H143.4c-11.3 0-20.5-9.2-20.5-20.5V657.9c0-20.4-13.8-39.5-34-42.9-25.6-4.3-48 15.5-48 40.4v286.7c0 22.5 18.4 41 41 41h284.2c20.4 0 39.5-13.8 42.9-34 4.3-25.6-15.5-48-40.4-48zM424.5 404c0-0.2-0.1-0.5-0.1-0.7v-204c0-22.5-18.4-41-41-41-22.5 0-41 18.4-41 41v105.8L151.8 114.3c-15.9-15.9-42-15.9-57.9 0-15.9 15.9-15.9 42 0 57.9L284.6 363H178.8c-22.5 0-41 18.4-41 41 0 22.5 18.4 41 41 41h204c0.2 0 0.5 0.1 0.7 0.1 8 0 15.5-2.4 21.8-6.5 0.2-0.2 0.5-0.3 0.8-0.4 2.3-1.5 4.4-3.2 6.3-5.2 1.9-1.9 3.7-4.1 5.2-6.3 0.2-0.2 0.3-0.5 0.4-0.7 4.1-6.5 6.5-14 6.5-22zM739.4 681.5h105.8c22.5 0 41-18.4 41-41 0-22.5-18.4-41-41-41h-204c-0.2 0-0.5-0.1-0.7-0.1-8.1 0-15.5 2.4-21.9 6.5-0.2 0.1-0.5 0.2-0.7 0.4-2.3 1.5-4.4 3.2-6.3 5.2-1.9 1.9-3.7 4.1-5.2 6.3-0.1 0.2-0.2 0.5-0.4 0.7-4.1 6.4-6.5 13.8-6.5 21.9 0 0.2 0.1 0.5 0.1 0.7v204c0 22.5 18.4 41 41 41 22.5 0 41-18.4 41-41V739.4l190.7 190.7c15.9 15.9 42 15.9 57.9 0s15.9-42 0-57.9L739.4 681.5z"/></svg>',
+  // 拖拽手柄（≡）
+  grip: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/></svg>'
+};
+
 async function copy(text, label) {
   await window.api.copyText(text);
   toast(`已复制：${label}`);
@@ -115,7 +129,7 @@ function renderContent() {
 
     const sectionHead = document.createElement('div');
     sectionHead.className = 'section-head' + (groupCollapsed ? ' collapsed' : '');
-    sectionHead.innerHTML = '<span class="arrow"></span>' +
+    sectionHead.innerHTML = '<span class="arrow">' + ICON.chevronRight + '</span>' +
       '<span class="group-icon">' + iconFor(g.name, gi) + '</span>' + escapeHtml(g.name);
 
     // 分组整体收缩：包住所有条目，收缩后整组隐藏
@@ -138,7 +152,7 @@ function renderContent() {
 
       const head = document.createElement('header');
       head.className = 'entry-head' + (collapsed ? ' collapsed' : '');
-      head.innerHTML = '<span class="arrow"></span><span class="entry-title">' +
+      head.innerHTML = '<span class="arrow">' + ICON.chevronRight + '</span><span class="entry-title">' +
         escapeHtml(entry.title || '未命名') + '</span>';
       const body = document.createElement('div');
       body.className = 'entry-body' + (collapsed ? '' : ' open');
@@ -398,6 +412,16 @@ function mkBtn(text, cls, onClick, title) {
   return b;
 }
 
+/* 图标型按钮：内容为内联 SVG，颜色随 currentColor（danger/active 由父类控制） */
+function mkIcon(icon, cls, onClick, title) {
+  const b = document.createElement('button');
+  b.className = 'mini-btn ' + (cls || '');
+  b.innerHTML = icon;
+  b.onclick = onClick;
+  if (title) b.title = title;
+  return b;
+}
+
 /* 就地编辑控件：分组/条目标题与键值 label 为单行输入；value 为自增高 textarea（Enter 即换行，文本整体保存） */
 function editNameInput(kind, gi, ei, value, placeholder) {
   const inp = document.createElement('input');
@@ -457,7 +481,7 @@ function renderEdit() {
     const isDefaultCollapsed = (state.editData.defaultCollapsed || []).includes(g.name);
     const ghead = document.createElement('div');
     ghead.className = 'edit-head' + (groupCollapsedEdit ? ' folded' : '');
-    ghead.appendChild(mkBtn(groupCollapsedEdit ? '▸' : '▾', 'icon', () => toggleEditGroup(gi)));
+    ghead.appendChild(mkIcon(ICON.chevronRight, 'icon collapse', () => toggleEditGroup(gi)));
     const gicon = document.createElement('span');
     gicon.className = 'edit-icon';
     gicon.textContent = iconFor(g.name, gi);
@@ -466,10 +490,10 @@ function renderEdit() {
     const gacts = document.createElement('div');
     gacts.className = 'edit-actions';
     // 默认折叠：图标 toggle（写 defaultCollapsed，正常视图首次进入时折叠该分组）
-    gacts.appendChild(mkBtn('▽', 'icon' + (isDefaultCollapsed ? ' active' : ''), () => toggleGroupDefaultCollapsed(gi),
+    gacts.appendChild(mkIcon(ICON.caretDown, 'icon' + (isDefaultCollapsed ? ' active' : ''), () => toggleGroupDefaultCollapsed(gi),
       isDefaultCollapsed ? '取消默认折叠（正常视图收起）' : '设为默认折叠（正常视图收起）'));
-    gacts.appendChild(mkBtn('+', 'icon', () => addEntry(gi), '添加条目'));
-    gacts.appendChild(mkBtn('✕', 'icon danger', () => delGroup(gi), '删除分组'));
+    gacts.appendChild(mkIcon(ICON.plus, 'icon', () => addEntry(gi), '添加条目'));
+    gacts.appendChild(mkIcon(ICON.x, 'icon danger', () => delGroup(gi), '删除分组'));
     ghead.appendChild(gacts);
     gsection.appendChild(ghead);
 
@@ -480,12 +504,12 @@ function renderEdit() {
 
       const ehead = document.createElement('div');
       ehead.className = 'edit-head sub' + (entryCollapsedEdit ? ' folded' : '');
-      ehead.appendChild(mkBtn(entryCollapsedEdit ? '▸' : '▾', 'icon', () => toggleEditEntry(gi, ei)));
+      ehead.appendChild(mkIcon(ICON.chevronRight, 'icon collapse', () => toggleEditEntry(gi, ei)));
       ehead.appendChild(editNameInput('entry', gi, ei, entry.title, '条目标题'));
       const eacts = document.createElement('div');
       eacts.className = 'edit-actions';
-      eacts.appendChild(mkBtn('＋键值', '', () => addItem(gi, ei))); // 键值新增，若也要图标可再调整
-      eacts.appendChild(mkBtn('✕', 'icon danger', () => delEntry(gi, ei), '删除条目'));
+      eacts.appendChild(mkIcon(ICON.plus, 'icon', () => addItem(gi, ei), '添加键值'));
+      eacts.appendChild(mkIcon(ICON.x, 'icon danger', () => delEntry(gi, ei), '删除条目'));
       ehead.appendChild(eacts);
       esection.appendChild(ehead);
 
@@ -497,7 +521,7 @@ function renderEdit() {
         // 拖拽手柄：draggable 仅在此手柄上，避免与 label/value 的文本选择冲突
         const handle = document.createElement('span');
         handle.className = 'drag-handle';
-        handle.textContent = '≡';
+        handle.innerHTML = ICON.grip;
         handle.title = '拖动调整位置';
         handle.draggable = true;
         handle.dataset.gi = gi; handle.dataset.ei = ei; handle.dataset.ii = ii;
@@ -533,7 +557,7 @@ function renderEdit() {
         keyRow.className = 'edit-item-key';
         keyRow.appendChild(handle);
         keyRow.appendChild(editLabelInput(gi, ei, ii, item.label));
-        keyRow.appendChild(mkBtn('✕', 'icon danger', () => delItem(gi, ei, ii)));
+        keyRow.appendChild(mkIcon(ICON.x, 'icon danger', () => delItem(gi, ei, ii), '删除键值'));
 
         wrap.appendChild(keyRow);
         wrap.appendChild(editValueArea(gi, ei, ii, item.value));
@@ -548,7 +572,7 @@ function renderEdit() {
 
   const addG = document.createElement('div');
   addG.className = 'edit-addgroup';
-  addG.appendChild(mkBtn('+', 'primary addgroup', addGroup, '添加分组'));
+  addG.appendChild(mkIcon(ICON.plus, 'primary addgroup', addGroup, '添加分组'));
   el.content.appendChild(addG);
 
   el.content.querySelectorAll('.edit-value').forEach((t) => autosizeValue(t));

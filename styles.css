@@ -123,17 +123,21 @@ body {
 }
 .group-section + .group-section .section-head { padding-top: 6px; }
 
-.section-head .arrow {
+.section-head .arrow,
+.entry-head .arrow {
   flex: none;
-  width: 0;
-  height: 0;
-  border-left: 5px solid var(--muted);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  /* 展开态朝下（基线与编辑模式折叠图标一致） */
   transform: rotate(90deg);
   transition: transform 0.15s;
 }
-.section-head.collapsed .arrow { transform: rotate(0deg); }
+.section-head.collapsed .arrow,
+.entry-head.collapsed .arrow { transform: rotate(0deg); }
 
 .section-head .group-icon {
   display: inline-block;
@@ -161,17 +165,8 @@ body {
   cursor: pointer;
 }
 
-.entry-head .arrow {
-  flex: none;
-  width: 0;
-  height: 0;
-  border-left: 5px solid var(--muted);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transform: rotate(90deg);
-  transition: transform 0.15s;
-}
-.entry-head.collapsed .arrow { transform: rotate(0deg); }
+.entry-head .arrow svg,
+.section-head .arrow svg { display: block; }
 
 .entry-title { font-weight: 600; font-size: 13px; }
 
@@ -271,12 +266,19 @@ body {
 .mini-btn.danger { color: #c0392b; }
 .mini-btn.danger:hover { background: #fdecea; }
 .mini-btn.block { width: 100%; padding: 7px; border-style: dashed; }
-.mini-btn.icon { width: 18px; height: 18px; padding: 0; align-items: center; justify-content: center; font-size: 12px; line-height: 1; flex: none; }
+/* 图标按钮：内联 SVG 内容，flex 居中保证各图标视觉尺寸一致 */
+.mini-btn.icon { width: 18px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; flex: none; }
+.mini-btn.icon svg { display: block; }
 /* 图标式 toggle 的「开」状态（如默认折叠） */
 .mini-btn.active { border-color: var(--accent); color: var(--accent); background: #eaf0ff; }
 .mini-btn.active:hover { background: #dde8ff; }
+/* 编辑表单内折叠箭头：展开态朝下，折叠态朝右，与正常视图箭头同构 */
+.mini-btn.collapse svg { transition: transform 0.15s; }
+.edit-head.folded .collapse svg { transform: rotate(0deg); }
+.edit-head:not(.folded) .collapse svg { transform: rotate(90deg); }
 /* 底部「添加分组」图标按钮 */
-.mini-btn.addgroup { width: 26px; height: 22px; padding: 0; line-height: 1; }
+.mini-btn.addgroup { width: 26px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.mini-btn.addgroup svg { width: 14px; height: 14px; }
 
 .edit-group {
   border: 1px solid var(--border);
@@ -315,7 +317,10 @@ body {
   padding: 0 2px;
   font-size: 14px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
+.drag-handle svg { display: block; width: 14px; height: 14px; }
 .drag-handle:hover { color: var(--text); }
 .drag-handle.dragging { color: var(--accent); }
 .edit-item.drag-source { opacity: 0.45; }
