@@ -740,12 +740,6 @@ document.getElementById('btnTop').onclick = async () => {
   toast(topOn ? '已开启置顶' : '已关闭置顶');
 };
 
-// 「?」使用说明：在弹出的独立悬浮窗中展示，主进程将其置于鼠标右下角（可脱离本窗边界）
-const btnHelp = document.getElementById('btnHelp');
-btnHelp.removeAttribute('title'); // 去掉原生 title，避免与自定义提示重复
-btnHelp.addEventListener('mouseenter', () => window.api.showHelpTip());
-btnHelp.addEventListener('mouseleave', () => window.api.hideHelpTip());
-
 document.getElementById('btnClose').onclick = () => window.api.closeWindow();
 
 init();
