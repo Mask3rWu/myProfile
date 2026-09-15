@@ -26,10 +26,102 @@ function applyDefaultCollapse() {
 
 const el = {
   nav: document.getElementById('titleNav'),
+  titlebar: document.querySelector('.titlebar'),
   content: document.getElementById('content'),
   toast: document.getElementById('toast'),
-  edit: document.getElementById('btnEdit')
+  edit: document.getElementById('btnEdit'),
+  edge: document.getElementById('edgeStrip')
 };
+
+// 贴边收缩：主进程缩入时显示这个小圆角按钮并隐藏正常内容；点它展开还原。
+// 箭头始终指向屏内（展开方向）：贴左缘指向右（→），贴右缘指向左（←）。
+// 用内联 SVG 而非 > / < 文本：SVG 是严格居中的矩形元素，左右贴边时视觉都一致居中。
+// 贴屏幕的一侧做平、另一侧圆角（对应 .left / .right 类）。
+const EDGE_ARROW = {
+  right: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  left: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>'
+};
+// 收缩态按钮：短按展开，按住后可上下拖动调整位置。
+let edgeDragging = false;
+let edgeMoved = false;
+let edgePointerId = null;
+let edgeDownY = 0;
+el.edge.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0 || !document.body.classList.contains('collapsed')) return;
+  edgeDragging = true;
+  edgeMoved = false;
+  edgePointerId = ev.pointerId;
+  edgeDownY = ev.clientY;
+  el.edge.setPointerCapture(ev.pointerId);
+  window.api.dragStart();
+});
+el.edge.addEventListener('pointermove', (ev) => {
+  if (!edgeDragging || ev.pointerId !== edgePointerId) return;
+  if (Math.abs(ev.clientY - edgeDownY) > 3) edgeMoved = true;
+  if (edgeMoved) {
+    ev.preventDefault();
+    window.api.dragMove();
+  }
+});
+el.edge.addEventListener('pointerup', (ev) => {
+  if (!edgeDragging || ev.pointerId !== edgePointerId) return;
+  edgeDragging = false;
+  edgePointerId = null;
+  if (edgeMoved) window.api.dragEnd();
+  else window.api.expandWindow();
+});
+el.edge.addEventListener('pointercancel', () => {
+  if (!edgeDragging) return;
+  edgeDragging = false;
+  edgePointerId = null;
+  window.api.dragEnd();
+});
+window.api.onCollapsed((edge) => {
+  document.body.classList.add('collapsed');
+  const left = edge === 'left';
+  el.edge.innerHTML = left ? EDGE_ARROW.right : EDGE_ARROW.left;
+  el.edge.classList.toggle('left', left);
+  el.edge.classList.toggle('right', !left);
+});
+window.api.onExpanded(() => document.body.classList.remove('collapsed'));
+window.api.onEdgePosition((pos) => {
+  if (!document.body.classList.contains('collapsed')) return;
+  // 箭头指向屏幕中心一侧：贴左显示 >，贴右显示 <；脱离边缘后也随当前位置更新。
+  const center = pos.x + pos.width / 2;
+  const screenCenter = pos.workAreaX + pos.workAreaWidth / 2;
+  const left = center <= screenCenter;
+  el.edge.innerHTML = left ? EDGE_ARROW.right : EDGE_ARROW.left;
+  el.edge.classList.toggle('left', left);
+  el.edge.classList.toggle('right', !left);
+});
+
+// 自定义窗口拖动：渲染层捕获鼠标并通知主进程移动窗口。
+// 走 win.setPosition 而非系统标题栏拖动，因此拖到屏幕边缘不会触发 Win11 的自动半屏贴靠。
+let dragging = false;
+el.titlebar.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0) return;
+  if (ev.target.closest('button')) return; // 别把按钮点击当成拖动
+  dragging = true;
+  el.titlebar.setPointerCapture(ev.pointerId); // 移出窗口也持续接收事件
+  window.api.dragStart();
+});
+el.titlebar.addEventListener('pointermove', (ev) => {
+  if (!dragging) return;
+  ev.preventDefault();
+  window.api.dragMove();
+});
+el.titlebar.addEventListener('pointerup', () => {
+  console.log('[renderer] pointerup, dragging=', dragging);
+  if (!dragging) return;
+  dragging = false;
+  window.api.dragEnd();
+});
+// 拖动被系统打断（如 Alt+Tab、光标失焦）时复位，避免残留拖动状态
+el.titlebar.addEventListener('pointercancel', () => {
+  if (!dragging) return;
+  dragging = false;
+  window.api.dragEnd();
+});
 
 let toastTimer = null;
 function toast(msg) {

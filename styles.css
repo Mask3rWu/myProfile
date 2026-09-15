@@ -32,7 +32,9 @@ body {
   background: var(--bar-bg);
   border-bottom: 1px solid var(--border);
   color: var(--bar-text);
-  -webkit-app-region: drag;
+  cursor: default;
+  /* 不启用系统 app-region 拖动：改由渲染层捕获鼠标、主进程自定义拖动，
+     从而避开 Win11 把窗口拖到屏幕边缘时的自动半屏贴靠 */
 }
 
 .title-nav {
@@ -233,6 +235,38 @@ body {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 .error { color: #c0392b; padding: 16px; }
+
+/* ---- 贴边收缩：35×35 的完整圆角按钮 ---- */
+.edge-strip {
+  display: none;
+  position: fixed;
+  inset: 0; /* 占满收缩后的小窗口（35×35） */
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.12);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag; /* 保证点击可还原，而非被当作拖动标题栏 */
+  border-radius: 6px;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+}
+body.collapsed .edge-strip { display: flex; }
+body.collapsed { background: transparent; }
+/* 收缩态隐藏正常界面，只留这一个按钮 */
+body.collapsed .titlebar,
+body.collapsed .body { display: none; }
+.edge-strip:hover { background: #eaf0ff; }
+/* 箭头为内联 SVG，统一尺寸并随 currentColor 着色 */
+.edge-strip svg { display: block; width: 16px; height: 16px; }
 
 
 /* ---- 编辑模式 ---- */

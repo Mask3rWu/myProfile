@@ -9,6 +9,19 @@ contextBridge.exposeInMainWorld('api', {
   setTop: (on) => ipcRenderer.invoke('config:set-top', on),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   closeWindow: () => ipcRenderer.invoke('window:close'),
+  expandWindow: () => ipcRenderer.send('window:expand'),
+  dragStart: () => ipcRenderer.send('window:drag-start'),
+  dragMove: () => ipcRenderer.send('window:drag-move'),
+  dragEnd: () => ipcRenderer.send('window:drag-end'),
+  onCollapsed: (cb) => {
+    ipcRenderer.on('window:collapsed', (_event, edge) => cb(edge));
+  },
+  onExpanded: (cb) => {
+    ipcRenderer.on('window:expanded', () => cb());
+  },
+  onEdgePosition: (cb) => {
+    ipcRenderer.on('window:edge-position', (_event, data) => cb(data));
+  },
   showHelpTip: () => ipcRenderer.send('help:tip-show'),
   hideHelpTip: () => ipcRenderer.send('help:tip-hide'),
   onConfigChanged: (cb) => {
