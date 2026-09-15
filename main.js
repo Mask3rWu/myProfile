@@ -13,6 +13,7 @@ let tipSize = null;     // 悬浮窗内容实际尺寸（加载完成后测得�
 const CHIP_W = 35;             // 收缩成的小按钮宽度（方形，左右对称）
 const CHIP_H = 35;             // 收缩成的小按钮高度
 const EDGE_TRIGGER = 8;        // 窗口边缘距屏幕边界多少像素以内判定为「贴边」
+const TITLEBAR_H = 32;         // 顶栏(导航栏)高度，展开锚定时的纵向参照（需与 styles .titlebar height 一致）
 const EXPAND_COOLDOWN = 700;   // 程序化位移后短暂忽略 moved，避免收缩与展开互相触发
 let collapsed = false;         // 是否处于收缩态
 let restoreBounds = null;      // 收缩前的窗口 bounds，展开时还原
@@ -87,8 +88,7 @@ function maybeCollapse() {
   const b = win.getBounds();
   const dLeft = b.x - wa.x;
   const dRight = wa.x + wa.width - (b.x + b.width);
-  console.log('[maybeCollapse] workArea=', wa, 'bounds=', b, 'dLeft=', dLeft, 'dRight=', dRight);
-  if (Math.abs(dLeft) <= EDGE_TRIGGER) collapseTo('left');
+    if (Math.abs(dLeft) <= EDGE_TRIGGER) collapseTo('left');
   else if (Math.abs(dRight) <= EDGE_TRIGGER) collapseTo('right');
 }
 
@@ -105,8 +105,8 @@ function collapseTo(edge) {
   // 收缩按钮始终完整位于工作区内，左右两侧都保留完整的 35×35 圆角矩形。
   const desiredX = edge === 'left' ? wa.x : wa.x + wa.width - CHIP_W;
   const x = Math.max(wa.x, Math.min(desiredX, wa.x + wa.width - CHIP_W));
-  // 在原窗口竖直范围内取中并夹紧在工作区内
-  const y = Math.min(Math.max(b.y + (b.height - CHIP_H) / 2, wa.y), wa.y + wa.height - CHIP_H);
+  // 按钮中心对准原导航栏中心，与展开锚定互为逆映射（展开 winY = 钮中心Y - TITLEBAR_H/2 即可还原）
+  const y = Math.round(Math.max(wa.y, Math.min(b.y + TITLEBAR_H / 2 - CHIP_H / 2, wa.y + wa.height - CHIP_H)));
   winDrag = null; // 点按钮还原时才收起，避免拖动残留
   setBoundsSafe({ x, y, width: CHIP_W, height: CHIP_H });
   // Windows 最终采用的尺寸可能受原生窗口约束影响，贴边必须以实际尺寸为准。
@@ -115,25 +115,57 @@ function collapseTo(edge) {
     edge === 'left' ? wa.x : wa.x + wa.width - actual.width,
     Math.round(Math.max(wa.y, Math.min(y, wa.y + wa.height - actual.height)))
   );
-  console.log('[collapse] edge=', edge, 'requested=', CHIP_W + 'x' + CHIP_H, 'actual=', win.getBounds());
-  if (win && !win.isDestroyed()) win.webContents.send('window:collapsed', edge);
+    if (win && !win.isDestroyed()) win.webContents.send('window:collapsed', edge);
 }
 
-// 还原：恢复收缩前的位置与尺寸
+// 还原：以收缩按钮当前位置为锚点展开。
+// 令展开后导航栏（顶部 32px 全宽条，中心即窗口中心）的对准按钮中心，两轴再夹回工作区：
+// 贴边时导航栏横向会顶到屏幕边缘（工具完整在屏内），纵向无论开关始终跟随按钮。
 function expandFromEdge() {
   if (!collapsed || !restoreBounds) return;
-  const b = restoreBounds;
+  // 尺寸沿用收缩前记录，位置改由按钮当前几何推出
+  const W = restoreBounds.width;
+  const H = restoreBounds.height;
+  const cur = win.getBounds();        // 收缩态下窗口即按钮，取其当前中心为锚
+  const bx = cur.x + cur.width / 2;
+  const by = cur.y + cur.height / 2;
+  const wa = currentWorkArea();
+  let x = bx - W / 2;                 // 导航栏横向中心对准按钮中心
+  let y = by - TITLEBAR_H / 2;        // 导航栏纵向中心对准按钮中心
+  // 优先保证工具完整位于工作区内：贴到左/右缘时有窗口会滑出屏幕，夹回即顶到边缘
+  x = Math.min(Math.max(wa.x, x), wa.x + wa.width - W);
+  y = Math.min(Math.max(wa.y, y), wa.y + wa.height - H);
   collapsed = false;
   win.setMinimumSize(origMin ? origMin[0] : 200, origMin ? origMin[1] : 200);
   win.setResizable(true);
   restoreBounds = null;
   origMin = null;
-  setBoundsSafe(b);
+  setBoundsSafe({ x: Math.round(x), y: Math.round(y), width: W, height: H });
   if (win && !win.isDestroyed()) {
     win.webContents.send('window:expanded');
     win.show();
     win.focus();
   }
+}
+
+// 就地收缩：不贴边也能通过导航栏缩放按钮随手缩成小按钮。
+// 按钮中心对准原导航栏中心（顶部 32px 条），展开锚定导航栏中心时即可无缝还原。
+function collapseInPlace() {
+  if (collapsed || !win || win.isDestroyed()) return;
+  const b = win.getBounds();
+  restoreBounds = { x: b.x, y: b.y, width: b.width, height: b.height };
+  origMin = win.getMinimumSize();
+  collapsed = true;
+  win.setMinimumSize(0, 0);   // 允许 CHIP_W 小按钮
+  win.setResizable(false);
+  const wa = currentWorkArea();
+  const cx = b.x + b.width / 2;        // 原导航栏中心
+  const cy = b.y + TITLEBAR_H / 2;
+  const x = Math.max(wa.x, Math.min(cx - CHIP_W / 2, wa.x + wa.width - CHIP_W));
+  const y = Math.max(wa.y, Math.min(cy - CHIP_H / 2, wa.y + wa.height - CHIP_H));
+  winDrag = null;
+  setBoundsSafe({ x: Math.round(x), y: Math.round(y), width: CHIP_W, height: CHIP_H });
+  if (win && !win.isDestroyed()) win.webContents.send('window:collapsed', 'center');
 }
 
 // ---- 自定义拖动：渲染层捕获鼠标，主进程用光标坐标跟随，不触发系统贴靠 ----
@@ -179,7 +211,6 @@ function dragEnd() {
     saveWinState();
     maybeCollapse(); // 落点贴到左/右边缘即缩入
   }, 120); // 略等一拍，确保最后一次 setPosition 已落地
-  console.log('[dragEnd]', win.getBounds());
 }
 
 function createWindow() {
@@ -379,6 +410,8 @@ if (!gotLock) {
     ipcMain.on('help:tip-hide', () => hideTip());
     // 点击收缩条箭头时还原窗口
     ipcMain.on('window:expand', expandFromEdge);
+    // 缩放按钮：不贴边时也可以就地收缩成小按钮
+    ipcMain.on('window:collapse', collapseInPlace);
     // 自定义窗口拖动（绕过系统贴靠）
     ipcMain.on('window:drag-start', dragStart);
     ipcMain.on('window:drag-move', dragMove);

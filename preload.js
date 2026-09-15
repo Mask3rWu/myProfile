@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   expandWindow: () => ipcRenderer.send('window:expand'),
+  collapseWindow: () => ipcRenderer.send('window:collapse'),
   dragStart: () => ipcRenderer.send('window:drag-start'),
   dragMove: () => ipcRenderer.send('window:drag-move'),
   dragEnd: () => ipcRenderer.send('window:drag-end'),

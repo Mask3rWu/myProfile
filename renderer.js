@@ -41,6 +41,20 @@ const EDGE_ARROW = {
   right: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   left: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>'
 };
+// 收缩钮位于屏幕中间（未贴边）时，用四角放大图标替代左右方向箭头，语义为「点击还原」
+const EDGE_EXPAND = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+// 贴边阈值需与主进程 EDGE_TRIGGER 一致，用于区分「贴左/贴右/中间」，从而选图标
+const EDGE_TRIGGER = 8;
+// 统一设置收缩钮图标：贴左显示 →，贴右显示 ←，中间显示放大图标
+function applyEdgeIcon(edge) {
+  const left = edge === 'left';
+  const right = edge === 'right';
+  if (right) el.edge.innerHTML = EDGE_ARROW.left;       // 贴右 → 指向左
+  else if (left) el.edge.innerHTML = EDGE_ARROW.right;  // 贴左 → 指向右
+  else el.edge.innerHTML = EDGE_EXPAND;                 // 中间 → 放大
+  el.edge.classList.toggle('left', left);
+  el.edge.classList.toggle('right', right);
+}
 // 收缩态按钮：短按展开，按住后可上下拖动调整位置。
 let edgeDragging = false;
 let edgeMoved = false;
@@ -78,21 +92,15 @@ el.edge.addEventListener('pointercancel', () => {
 });
 window.api.onCollapsed((edge) => {
   document.body.classList.add('collapsed');
-  const left = edge === 'left';
-  el.edge.innerHTML = left ? EDGE_ARROW.right : EDGE_ARROW.left;
-  el.edge.classList.toggle('left', left);
-  el.edge.classList.toggle('right', !left);
+  applyEdgeIcon(edge); // 'left' / 'right' / 'center'
 });
 window.api.onExpanded(() => document.body.classList.remove('collapsed'));
 window.api.onEdgePosition((pos) => {
   if (!document.body.classList.contains('collapsed')) return;
-  // 箭头指向屏幕中心一侧：贴左显示 >，贴右显示 <；脱离边缘后也随当前位置更新。
-  const center = pos.x + pos.width / 2;
-  const screenCenter = pos.workAreaX + pos.workAreaWidth / 2;
-  const left = center <= screenCenter;
-  el.edge.innerHTML = left ? EDGE_ARROW.right : EDGE_ARROW.left;
-  el.edge.classList.toggle('left', left);
-  el.edge.classList.toggle('right', !left);
+  // 拖拽中随位置实时换图标：贴左 → 指向右，贴右 → 指向左，中间 → 放大图标
+  const nearL = pos.x - pos.workAreaX <= EDGE_TRIGGER;
+  const nearR = pos.workAreaX + pos.workAreaWidth - (pos.x + pos.width) <= EDGE_TRIGGER;
+  applyEdgeIcon(nearL ? 'left' : nearR ? 'right' : 'center');
 });
 
 // 自定义窗口拖动：渲染层捕获鼠标并通知主进程移动窗口。
@@ -111,7 +119,6 @@ el.titlebar.addEventListener('pointermove', (ev) => {
   window.api.dragMove();
 });
 el.titlebar.addEventListener('pointerup', () => {
-  console.log('[renderer] pointerup, dragging=', dragging);
   if (!dragging) return;
   dragging = false;
   window.api.dragEnd();
@@ -741,5 +748,7 @@ document.getElementById('btnTop').onclick = async () => {
 };
 
 document.getElementById('btnClose').onclick = () => window.api.closeWindow();
+// 缩放按钮：原地把窗口收缩成小按钮（不贴边也能随手收缩），完成后再点按钮还原
+document.getElementById('btnScale').onclick = () => window.api.collapseWindow();
 
 init();
